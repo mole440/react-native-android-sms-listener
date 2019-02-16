@@ -1,6 +1,6 @@
 package com.centaurwarchief.smslistener;
 
-import android.content.BroadcastReceiver;
+import android.support.v4.content.WakefulBroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
@@ -8,12 +8,13 @@ import android.os.Bundle;
 import android.provider.Telephony;
 import android.telephony.SmsMessage;
 import android.util.Log;
+import android.os.PowerManager;
 
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 
-public class SmsReceiver extends BroadcastReceiver {
+public class SmsReceiver extends WakefulBroadcastReceiver {
     private ReactApplicationContext mContext;
 
     private static final String EVENT = "com.centaurwarchief.smslistener:smsReceived";
@@ -52,11 +53,20 @@ public class SmsReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        PowerManager.WakeLock screenWakeLock;
+
+        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        screenWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ScreenLock tag from AlarmListener");
+        screenWakeLock.acquire();
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             for (SmsMessage message : Telephony.Sms.Intents.getMessagesFromIntent(intent)) {
                 receiveMessage(message);
             }
 
+            // if (screenWakeLock != null) {
+                screenWakeLock.release();
+            // }
             return;
         }
 
@@ -72,8 +82,15 @@ public class SmsReceiver extends BroadcastReceiver {
             for (Object pdu : pdus) {
                 receiveMessage(SmsMessage.createFromPdu((byte[]) pdu));
             }
+
+            // if (screenWakeLock != null) {
+                screenWakeLock.release();
+            // }
         } catch (Exception e) {
             Log.e(SmsListenerPackage.TAG, e.getMessage());
+            // if (screenWakeLock != null) {
+                screenWakeLock.release();
+            // }
         }
     }
 }
